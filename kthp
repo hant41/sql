@@ -1,0 +1,110 @@
+use master 
+go
+create database QLSinhVien
+go
+use QLSinhVien
+go
+create table khoa(
+makhoa nchar(10) not null primary key,
+tenkhoa nvarchar(30),
+sdt nchar(10)
+)
+create table lop(
+malop nchar(10) not null primary key,
+tenlop nvarchar(30),
+siso int,
+makhoa nchar(10) not null,
+constraint FK_Lop_Khoa foreign key (makhoa) references khoa(makhoa)
+)
+create table sinhvien(
+masv nchar(10) not null primary key,
+hoten nvarchar(30),
+gioitinh nchar(5),
+ngaysinh date,
+malop nchar(10) not null,
+constraint FK_SV_Lop foreign key (malop) references lop(malop)
+)
+ insert into khoa values('K01',N'CNTT','0123456789')
+ insert into khoa values('K02',N'QLKD','1234567890')
+ insert into khoa values('K03',N'Ô tô','2134567890')
+
+ insert into lop values('H2','HTTT2',70,'K01')
+ insert into lop values('Q2','QTNL2',68,'K02')
+ insert into lop values('O4',N'Ô tô 4',72,'K03')
+
+ insert into sinhvien values('S1', N'Nguyễn Thị Hà', N'Nữ', '01/04/2000', 'H2')
+ insert into sinhvien values('S2', N'Nguyễn Thị B', N'Nữ', '04/02/2000', 'H2')
+ insert into sinhvien values('S3', N'Nguyễn Văn C', N'Nam', '05/07/2000', 'Q2')
+ insert into sinhvien values('S4', N'Nguyễn Thị D', N'Nữ', '06/08/2000', 'O4')
+ insert into sinhvien values('S5', N'Nguyễn Văn E', N'Nam', '04/01/2000', 'O4')
+
+-------------------TEST--------------------------------
+select * from khoa
+select * from lop
+select * from sinhvien
+
+------------------CAU2---------------------------------
+create function DS_LOP(@tenkhoa nvarchar(30))
+returns @Bang table(
+malop nchar(10),
+tenlop nvarchar(30),
+siso int
+)
+as
+begin
+insert into @Bang
+select malop, tenlop, siso from lop inner join khoa on lop.makhoa=khoa.makhoa
+where tenkhoa=@tenkhoa
+return
+end
+---------test---------
+select * from lop
+select * from DS_LOP(N'CNTT')
+
+-----------------CAU 3--------------------
+create proc them_sv01(@masv nchar(10),
+					@hoten nvarchar(30),
+					@gioitinh nchar(5),
+					@ngaysinh date,
+					@tenlop nchar(10)
+					)
+as
+begin
+	if(not exists(select * from lop where malop=@tenlop))
+	begin
+		print N'Tên lớp không tồn tại'
+	end
+	else 
+	begin
+		insert into sinhvien values(@masv,@hoten,@gioitinh,@ngaysinh,@tenlop)
+	end
+end
+---------------test-------------------
+-----truong hop ten lop k ton tai----------
+select * from sinhvien
+exec them_sv01 'S6','Nguyen thi F','Nu','3/2/2000','M1'
+-----truong hop dung----------
+select * from sinhvien
+exec them_sv01 'S6','Nguyen thi F','Nu','02/02/2000','H2'
+
+-------------CAU 4-------------
+create trigger Capnhat
+on sinhvien
+for update
+as
+begin
+	declare @truoc nchar(10), @sau nchar(10)
+	select @truoc=malop from deleted
+	select @sau=malop from inserted
+	if(@sau>=80)
+		begin
+			Raiserror(N'Không duoc cap nhat',16,1)
+			Rollback Transaction
+		end
+	else
+		update lop set siso = @truoc + 1 from lop where malop=@malop
+end
+
+select * from sinhvien
+select * from lop
+update sinhvien
